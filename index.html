@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IOCL Fuel Logistics Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <button class="hamburger-menu" id="hamburgerMenu">☰</button>
+            <h1 class="header-title">IOCL FUEL LOGISTICS DASHBOARD</h1>
+            <nav class="page-nav">
+                <button class="nav-btn active" data-page="page1">Analysis Results</button>
+                <button class="nav-btn" data-page="page2">Historical Data</button>
+                <button class="nav-btn" data-page="page3">Visual Analytics</button>
+                <button class="nav-btn" data-page="page4">System Overview</button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-content">
+            <h3>Data Upload & Analysis</h3>
+            
+            <!-- MDP Files Upload -->
+            <div class="upload-section">
+                <h4>MDP Files (1-31.xlsx)</h4>
+                <input type="file" id="mdpFiles" multiple accept=".xlsx" class="form-control">
+                <div class="file-list" id="mdpFileList"></div>
+            </div>
+
+            <!-- Manual Indent Entry -->
+            <div class="indent-section">
+                <h4>Manual Indent Entry</h4>
+                <div class="form-group">
+                    <label class="form-label">Location</label>
+                    <select class="form-control" id="indentLocation">
+                        <option value="">Select Location</option>
+                        <option value="Aonla">Aonla</option>
+                        <option value="Banthra">Banthra</option>
+                        <option value="Gonda">Gonda</option>
+                        <option value="Jammu">Jammu</option>
+                        <option value="Jhansi">Jhansi</option>
+                        <option value="Jodhpur">Jodhpur</option>
+                        <option value="Lal Kuan">Lal Kuan</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Material</label>
+                    <select class="form-control" id="indentMaterial">
+                        <option value="">Select Material</option>
+                        <option value="MS">MS</option>
+                        <option value="HSD">HSD</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Quantity (TKL)</label>
+                    <input type="number" class="form-control" id="indentQuantity" placeholder="Enter quantity">
+                </div>
+                <button class="btn btn--secondary btn--sm" id="addIndent">Add Indent</button>
+            </div>
+
+            <!-- Excel Indent Upload -->
+            <div class="upload-section">
+                <h4>Excel Indent Upload</h4>
+                <input type="file" id="indentFile" accept=".xlsx" class="form-control">
+            </div>
+
+            <!-- Regional Filters -->
+            <div class="filter-section">
+                <h4>Regional Filters</h4>
+                <div class="checkbox-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="northernRegion" checked>
+                        Northern Region
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="easternRegion" checked>
+                        Eastern Region
+                    </label>
+                </div>
+            </div>
+
+            <!-- Run Analysis Button -->
+            <button class="btn btn--primary btn--full-width" id="runAnalysis">Run Analysis</button>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content" id="mainContent">
+        <!-- Page 1: Analysis Results -->
+        <div class="page active" id="page1">
+            <div class="page-header">
+                <h2>Analysis Results</h2>
+                <div class="sort-controls">
+                    <label>Sort by Earliest Load:</label>
+                    <button class="btn btn--outline btn--sm" id="sortAsc">Ascending</button>
+                    <button class="btn btn--outline btn--sm" id="sortDesc">Descending</button>
+                </div>
+            </div>
+            
+            <!-- Empty State -->
+            <div class="empty-state" id="emptyState">
+                <div class="empty-state-content">
+                    <h3>No Data Available</h3>
+                    <p>Upload MDP files and click "Run Analysis" to begin</p>
+                </div>
+            </div>
+
+            <!-- Analysis Table -->
+            <div class="table-container" id="analysisTableContainer" style="display: none;">
+                <table class="analysis-table" id="analysisTable">
+                    <thead>
+                        <tr>
+                            <th>Location</th>
+                            <th>Material</th>
+                            <th>Stock (TKL)</th>
+                            <th>Ullage (TKL)</th>
+                            <th>Ullage (TW)</th>
+                            <th>Daily Avg Sale</th>
+                            <th>Days Cover</th>
+                            <th>Stock in Transit Northern</th>
+                            <th>Stock in Transit Eastern</th>
+                            <th>Day 0 Ullage</th>
+                            <th>Day 1 Ullage</th>
+                            <th>Day 2 Ullage</th>
+                            <th>Day 3 Ullage</th>
+                            <th>Status</th>
+                            <th>Earliest Load (Calculated)</th>
+                            <th>Latest Load (Calculated)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="analysisTableBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Page 2: Historical Data -->
+        <div class="page" id="page2">
+            <div class="page-header">
+                <h2>Historical Data</h2>
+                <div class="toggle-controls">
+                    <div class="toggle-group">
+                        <button class="btn btn--outline btn--sm active" data-sheet="stock">Stock Sheet</button>
+                        <button class="btn btn--outline btn--sm" data-sheet="ullage">Ullage Sheet</button>
+                        <button class="btn btn--outline btn--sm" data-sheet="sales">Previous Day Sales</button>
+                    </div>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="historicalDays" value="7" checked>
+                            7 days
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="historicalDays" value="14">
+                            14 days
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="historicalDays" value="30">
+                            30 days
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="insufficient-data" id="insufficientData" style="display: none;">
+                <div class="alert alert-warning">
+                    <h4>Insufficient Data</h4>
+                    <p>Not enough historical data available for the selected time period.</p>
+                </div>
+            </div>
+
+            <div class="table-container" id="historicalTableContainer">
+                <table class="historical-table" id="historicalTable">
+                    <thead id="historicalTableHead">
+                    </thead>
+                    <tbody id="historicalTableBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Page 3: Visual Analytics -->
+        <div class="page" id="page3">
+            <div class="page-header">
+                <h2>Visual Analytics</h2>
+                <div class="toggle-controls">
+                    <div class="toggle-group">
+                        <button class="btn btn--outline btn--sm active" data-trend="overview">Overview</button>
+                        <button class="btn btn--outline btn--sm" data-trend="sales">Sales Trend</button>
+                        <button class="btn btn--outline btn--sm" data-trend="stock">Stock Trend</button>
+                        <button class="btn btn--outline btn--sm" data-trend="ullage">Ullage Trend</button>
+                    </div>
+                </div>
+            </div>
+            <div class="analytics-grid">
+                <div class="summary-cards">
+                    <div class="card summary-card">
+                        <div class="card__body">
+                            <h3>Total Locations</h3>
+                            <div class="metric-value" id="totalLocations">0</div>
+                        </div>
+                    </div>
+                    <div class="card summary-card">
+                        <div class="card__body">
+                            <h3>Critical/Low Tankage</h3>
+                            <div class="metric-value critical" id="criticalLow">0</div>
+                        </div>
+                    </div>
+                    <div class="card summary-card">
+                        <div class="card__body">
+                            <h3>Normal/High Tankage</h3>
+                            <div class="metric-value normal" id="normalHigh">0</div>
+                        </div>
+                    </div>
+                    <div class="card summary-card">
+                        <div class="card__body">
+                            <h3>Average Days Cover</h3>
+                            <div class="metric-value" id="avgDaysCover">0</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="charts-grid">
+                    <div class="chart-container">
+                        <h4>Days Cover Distribution</h4>
+                        <canvas id="daysCoverChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h4>Material Analysis</h4>
+                        <canvas id="materialChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h4>Stock vs Ullage Comparison</h4>
+                        <canvas id="stockUllageChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h4>Trend Analysis</h4>
+                        <canvas id="trendChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Page 4: System Overview -->
+        <div class="page" id="page4">
+            <div class="page-header">
+                <h2>System Overview</h2>
+            </div>
+            <div class="overview-grid">
+                <div class="kpi-dashboard">
+                    <div class="card kpi-card">
+                        <div class="card__body">
+                            <h3>Total Stock</h3>
+                            <div class="kpi-value" id="totalStock">0</div>
+                            <span class="kpi-unit">TKL</span>
+                        </div>
+                    </div>
+                    <div class="card kpi-card">
+                        <div class="card__body">
+                            <h3>Total Ullage</h3>
+                            <div class="kpi-value" id="totalUllage">0</div>
+                            <span class="kpi-unit">TKL</span>
+                        </div>
+                    </div>
+                    <div class="card kpi-card">
+                        <div class="card__body">
+                            <h3>Average Daily Sales</h3>
+                            <div class="kpi-value" id="avgDailySales">0</div>
+                            <span class="kpi-unit">TKL/Day</span>
+                        </div>
+                    </div>
+                    <div class="card kpi-card">
+                        <div class="card__body">
+                            <h3>Critical Locations</h3>
+                            <div class="kpi-value critical" id="criticalLocations">0</div>
+                            <span class="kpi-unit">Locations</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="dashboard-charts">
+                    <div class="chart-section">
+                        <div class="card">
+                            <div class="card__body">
+                                <h3>Status Distribution</h3>
+                                <canvas id="statusChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-section">
+                        <div class="card">
+                            <div class="card__body">
+                                <h3>Regional Stock Comparison</h3>
+                                <canvas id="regionalChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-section">
+                        <div class="card">
+                            <div class="card__body">
+                                <h3>Loading Priority Matrix</h3>
+                                <canvas id="priorityChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="operational-metrics">
+                        <div class="card">
+                            <div class="card__body">
+                                <h3>Operational KPIs</h3>
+                                <div class="metrics-grid">
+                                    <div class="metric-item">
+                                        <span class="metric-label">Stock Turnover</span>
+                                        <span class="metric-value" id="stockTurnover">0</span>
+                                    </div>
+                                    <div class="metric-item">
+                                        <span class="metric-label">Capacity Utilization</span>
+                                        <span class="metric-value" id="capacityUtil">0%</span>
+                                    </div>
+                                    <div class="metric-item">
+                                        <span class="metric-label">Avg Loading Time</span>
+                                        <span class="metric-value" id="avgLoadTime">0</span>
+                                    </div>
+                                    <div class="metric-item">
+                                        <span class="metric-label">Efficiency Score</span>
+                                        <span class="metric-value" id="efficiencyScore">0%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+        <p>Processing data...</p>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
